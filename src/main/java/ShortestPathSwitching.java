@@ -136,6 +136,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
             /* TODO: Update routing: add rules to route to new host          */
 
             /*****************************************************************/
+            this.shortestPaths = dijkstraPaths();
             logData();
         }
     }
@@ -444,76 +445,79 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         Collection<IOFSwitch> switches = getSwitches().values();
         HashMap<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>> shortestPaths = new HashMap<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>>();
 
-        for(IOFSwitch v : switches) {
+        for(IOFSwitch _switch : switches) {
 
             // Initialize distances, parent switch for all switches.
             // q represents a priority queue to track switches that haven't
             // been processed by the algorithm yet
-            HashMap<IOFSwitch, Integer> d = new HashMap<IOFSwitch, Integer>();
+            HashMap<IOFSwitch, Integer> distances = new HashMap<IOFSwitch, Integer>();
             HashMap<IOFSwitch, IOFSwitch> parent = new HashMap<IOFSwitch, IOFSwitch>();
-            HashMap<IOFSwitch, Integer> q = new HashMap<IOFSwitch, Integer>();
+            HashMap<IOFSwitch, Integer> unProcessedSwitches = new HashMap<IOFSwitch, Integer>();
 
-            for(IOFSwitch x : switches) {
-                d.put(x, Integer.MAX_VALUE - 1);
-                q.put(x, Integer.MAX_VALUE - 1);
-                parent.put(x, null);
+            for(IOFSwitch _switch2 : switches) {
+                distances.put(_switch2, Integer.MAX_VALUE - 1);
+                unProcessedSwitches.put(_switch2, Integer.MAX_VALUE - 1);
+                parent.put(_switch2, null);
             }
 
-            d.put(v, 0);
-            q.put(v, 0);
+            distances.put(_switch, 0);
+            unProcessedSwitches.put(_switch, 0);
 
             for(Link link : getLinks()) {
                 IOFSwitch source = getSwitches().get(link.getSrc());
                 IOFSwitch dest = getSwitches().get(link.getDst());
 
-                if(source == v) {
-                    d.put(dest, 1);
-                    q.put(dest, 1);
+                if(source == _switch) {
+                    distances.put(dest, 1);
+                    unProcessedSwitches.put(dest, 1);
                     parent.put(dest, source);
                 }
             }
 
-            Set<IOFSwitch> s = new HashSet<IOFSwitch>();
-            IOFSwitch u;
+            Set<IOFSwitch> minCostSwitches = new HashSet<IOFSwitch>();
+            IOFSwitch minCostSwitch;
 
-            while(!q.isEmpty()) {
-                u = getMinCostSwitch(q);
-                q.remove(u);
-                s.add(u);
+            while(!unProcessedSwitches.isEmpty()) {
+                minCostSwitch = getMinCostSwitch(unProcessedSwitches);
+                unProcessedSwitches.remove(minCostSwitch);
+                minCostSwitches.add(minCostSwitch);
                 for(Link link : getLinks()) {
                     IOFSwitch source = getSwitches().get(link.getSrc());
                     IOFSwitch adj = getSwitches().get(link.getDst());
 
-                    if(source == u && !s.contains(adj)) {
-                        if(d.get(u) + 1 < d.get(adj)) {
-                            d.put(adj, d.get(u) + 1);
-                            q.put(adj, d.get(u) + 1);
-                            parent.put(adj, u);
+                    if(source == minCostSwitch && !minCostSwitches.contains(adj)) {
+                        if(distances.get(minCostSwitch) + 1 < distances.get(adj)) {
+                            distances.put(adj, distances.get(minCostSwitch) + 1);
+                            unProcessedSwitches.put(adj, distances.get(minCostSwitch) + 1);
+                            parent.put(adj, minCostSwitch);
                         }
 
                     }
                 }
             }
 
-            shortestPaths.put(v, parent);
+            shortestPaths.put(_switch, parent);
         }
 
         return shortestPaths;
     }
 
-    private IOFSwitch getMinCostSwitch(HashMap<IOFSwitch, Integer> q) {
+    /*
+		Retrieves switch with minimum link cost (priority) in the priority queue q
+	*/
+    private IOFSwitch getMinCostSwitch(HashMap<IOFSwitch, Integer> unProcessedSwitches) {
 
         Integer min = Integer.MAX_VALUE - 1;
-        IOFSwitch ans = null;
+        IOFSwitch answer = null;
 
-        for(IOFSwitch key : q.keySet()) {
-            if(q.get(key) <= min) {
-                min = q.get(key);
-                ans = key;
+        for(IOFSwitch key : unProcessedSwitches.keySet()) {
+            if(unProcessedSwitches.get(key) <= min) {
+                min = unProcessedSwitches.get(key);
+                answer = key;
             }
         }
 
-        return ans;
+        return answer;
     }
 }
 
