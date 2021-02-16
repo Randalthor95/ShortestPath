@@ -385,6 +385,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         printHosts(this.getHosts());
         printSwitches(this.getSwitches());
         printLinks(this.getLinks());
+        printShortestPaths(this.shortestPaths);
     }
 
     private void printHosts(Collection<Host> hosts) {
@@ -420,6 +421,22 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
             log.info("SrcPort: " + link.getSrcPort());
             log.info("Dst: " + link.getDst());
             log.info("DstPort: " + link.getDstPort());
+        }
+        log.info("");
+    }
+
+    private void printShortestPaths(HashMap<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>> shortestPaths) {
+        log.info("#############ShortestPaths#############");
+        Iterator<Map.Entry<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>>> iterator = shortestPaths.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>> inner = iterator.next();
+            Iterator<Map.Entry<IOFSwitch, IOFSwitch>> iterator2 = inner.getValue().entrySet().iterator();
+            log.info(inner.getKey() + ": ");
+            while (iterator2.hasNext()) {
+                Map.Entry<IOFSwitch, IOFSwitch> inner2 = iterator2.next();
+                log.info("{ " + inner2.getKey() +" : " + inner2.getValue() + ", ");
+            }
+            log.info("}");
         }
         log.info("");
     }
