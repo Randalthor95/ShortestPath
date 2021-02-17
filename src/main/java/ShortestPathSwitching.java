@@ -378,67 +378,80 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     }
 
     private void logData() {
-        log.info("##################### LOG DATA #######################################");
-        log.info("#############TABLE#############");
-        log.info(String.valueOf(this.table));
-        log.info("");
-        printHosts(this.getHosts());
-        printSwitches(this.getSwitches());
-        printLinks(this.getLinks());
-        printShortestPaths(this.shortestPaths);
+        StringBuilder message = new StringBuilder();
+        message.append("\n##################### LOG DATA #######################################");
+        message.append("\n#############TABLE#############\n");
+        message.append(String.valueOf(this.table) + "\n");
+        message.append(getHostsAsString(this.getHosts()));
+        message.append(getSwitchesAsString(this.getSwitches()));
+        message.append(getLinksAsString(this.getLinks()));
+        message.append(getShortestPathsAsString(this.shortestPaths));
+        log.info(message.toString());
     }
 
-    private void printHosts(Collection<Host> hosts) {
-
-        log.info("#############HOSTS#############");
+    private String getHostsAsString(Collection<Host> hosts) {
+        StringBuilder message = new StringBuilder();
+        message.append("\n#############HOSTS#############\n");
         for (Host host : hosts) {
-            log.info(host.getName());
-            log.info("MACAddress: " + host.getMACAddress());
-            log.info("IPv4: " + host.getIPv4Address());
-            log.info("Port: " + host.getPort());
-            log.info("Switch: " + host.getSwitch());
+            message.append("Host Name: " + host.getName() + "  ");
+            message.append("MACAddress: " + host.getMACAddress() + "  ");
+            message.append("IPv4: " + host.getIPv4Address() + "  ");
+            message.append("Port: " + host.getPort() + "  ");
+            message.append("Switch: " + host.getSwitch() + "  ");
+            message.append("\n");
         }
-        log.info("");
+        return message.toString();
     }
 
-    private void printSwitches(Map<Long, IOFSwitch> switches) {
-
-        log.info("#############Switches#############");
+    private String getSwitchesAsString(Map<Long, IOFSwitch> switches) {
+        StringBuilder message = new StringBuilder();
+        message.append("\n#############Switches#############\n");
         Iterator<Map.Entry<Long, IOFSwitch>> iterator = switches.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Long, IOFSwitch> _switch = iterator.next();
-            log.info(_switch.getValue().getStringId());
+            message.append(_switch.getValue().getStringId());
+            message.append("\n");
         }
-        log.info("");
+        return message.toString();
     }
 
-    private void printLinks(Collection<Link> links) {
-
-        log.info("#############Links#############");
+    private String getLinksAsString(Collection<Link> links) {
+        StringBuilder message = new StringBuilder();
+        message.append("\n#############Links#############\n");
         for (Link link : links) {
-            log.info(String.valueOf(link));
-            log.info("Src: " + link.getSrc());
-            log.info("SrcPort: " + link.getSrcPort());
-            log.info("Dst: " + link.getDst());
-            log.info("DstPort: " + link.getDstPort());
+            message.append(link.toString()).append("\n");
         }
-        log.info("");
+        return message.toString();
     }
 
-    private void printShortestPaths(HashMap<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>> shortestPaths) {
-        log.info("#############ShortestPaths#############");
-        Iterator<Map.Entry<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>>> iterator = shortestPaths.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>> inner = iterator.next();
+    private String getShortestPathsAsString(HashMap<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>> shortestPaths) {
+        StringBuilder message = new StringBuilder();
+        message.append("\n#############ShortestPaths#############\n");
+
+        for (Map.Entry<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>> inner : shortestPaths.entrySet()) {
             Iterator<Map.Entry<IOFSwitch, IOFSwitch>> iterator2 = inner.getValue().entrySet().iterator();
-            log.info(inner.getKey() + ": ");
+            message.append(inner.getKey().getStringId()).append(": {");
+            message.append("\n");
             while (iterator2.hasNext()) {
                 Map.Entry<IOFSwitch, IOFSwitch> inner2 = iterator2.next();
-                log.info("{ " + inner2.getKey() +" : " + inner2.getValue() + ", ");
+                message.append("{ ");
+                if (inner2.getKey() != null && inner2.getKey().getStringId() != null) {
+                    message.append(inner2.getKey().getStringId());
+                } else {
+                    message.append("null");
+                }
+                message.append(" : ");
+                if (inner2.getValue() != null) {
+                    message.append(inner2.getValue().getStringId());
+                } else {
+                    message.append("null");
+                }
+                message.append(", ");
+                message.append("}\n");
             }
-            log.info("}");
+            message.append("}\n");
         }
-        log.info("");
+        return message.toString();
     }
 
     /*
@@ -462,7 +475,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         Collection<IOFSwitch> switches = getSwitches().values();
         HashMap<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>> shortestPaths = new HashMap<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>>();
 
-        for(IOFSwitch _switch : switches) {
+        for (IOFSwitch _switch : switches) {
 
             // Initialize distances, parent switch for all switches.
             // q represents a priority queue to track switches that haven't
@@ -471,7 +484,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
             HashMap<IOFSwitch, IOFSwitch> parent = new HashMap<IOFSwitch, IOFSwitch>();
             HashMap<IOFSwitch, Integer> unProcessedSwitches = new HashMap<IOFSwitch, Integer>();
 
-            for(IOFSwitch _switch2 : switches) {
+            for (IOFSwitch _switch2 : switches) {
                 distances.put(_switch2, Integer.MAX_VALUE - 1);
                 unProcessedSwitches.put(_switch2, Integer.MAX_VALUE - 1);
                 parent.put(_switch2, null);
@@ -480,11 +493,11 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
             distances.put(_switch, 0);
             unProcessedSwitches.put(_switch, 0);
 
-            for(Link link : getLinks()) {
+            for (Link link : getLinks()) {
                 IOFSwitch source = getSwitches().get(link.getSrc());
                 IOFSwitch dest = getSwitches().get(link.getDst());
 
-                if(source == _switch) {
+                if (source == _switch) {
                     distances.put(dest, 1);
                     unProcessedSwitches.put(dest, 1);
                     parent.put(dest, source);
@@ -494,16 +507,16 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
             Set<IOFSwitch> minCostSwitches = new HashSet<IOFSwitch>();
             IOFSwitch minCostSwitch;
 
-            while(!unProcessedSwitches.isEmpty()) {
+            while (!unProcessedSwitches.isEmpty()) {
                 minCostSwitch = getMinCostSwitch(unProcessedSwitches);
                 unProcessedSwitches.remove(minCostSwitch);
                 minCostSwitches.add(minCostSwitch);
-                for(Link link : getLinks()) {
+                for (Link link : getLinks()) {
                     IOFSwitch source = getSwitches().get(link.getSrc());
                     IOFSwitch adj = getSwitches().get(link.getDst());
 
-                    if(source == minCostSwitch && !minCostSwitches.contains(adj)) {
-                        if(distances.get(minCostSwitch) + 1 < distances.get(adj)) {
+                    if (source == minCostSwitch && !minCostSwitches.contains(adj)) {
+                        if (distances.get(minCostSwitch) + 1 < distances.get(adj)) {
                             distances.put(adj, distances.get(minCostSwitch) + 1);
                             unProcessedSwitches.put(adj, distances.get(minCostSwitch) + 1);
                             parent.put(adj, minCostSwitch);
@@ -527,8 +540,8 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         Integer min = Integer.MAX_VALUE - 1;
         IOFSwitch answer = null;
 
-        for(IOFSwitch key : unProcessedSwitches.keySet()) {
-            if(unProcessedSwitches.get(key) <= min) {
+        for (IOFSwitch key : unProcessedSwitches.keySet()) {
+            if (unProcessedSwitches.get(key) <= min) {
                 min = unProcessedSwitches.get(key);
                 answer = key;
             }
