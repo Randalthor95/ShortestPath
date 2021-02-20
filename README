@@ -1,0 +1,32 @@
+# ShortestPathSwitching
+
+
+##Author
+Anthony Feudale
+
+## How Far I Got
+I was able to successfully complete the assignment in full. Fulling
+    Part 1 Procedural,
+    Option 2 Static Routing with Shortest Path Implementation
+    Part 4 Dynamic Changes to the Topology
+
+## Changes Made
+
+The principle changes made were:
+    1. The creation of an uninitialized HashMap shortestPaths variable in init().
+    2. The creation of a method dijkstraPaths() which calculates the shortest paths for all the switches in a given
+        topology and whose return value is the HashMap for shortestPaths. Based on code found at Github for Dijkstra's.
+        https://github.com/vnatesh/SDN-Controller/blob/b762e3476a6cc85b72b5d083096b2c17023f6ac6/ShortestPathSwitching.java#L130
+        Hashmap looks like this logically:
+        {switch1 : {switch1 : null, switch2 : switch1, ...},
+                    switch2 : {switch1: switch2, switch2 : null, ...}, ...}
+    2. The creation of a method removeAllFlowTableRules() which removes all the existing rules for the flow table.
+    3. The creation of a method setAllFlowTableRulesForAllHosts() which sets all the flow tables rules for each all
+     hosts using the shortest path calculated and saved in shortestPaths.
+    4. The creation of a method logData() which just pretty prints a bunch of useful logging.
+    5. The 4 new methods are called in each of the 6 methods with TODO's except init() and start().
+        Essentially, anytime a change is made to our topology in anyway I just recalculate the shortest paths, nuke the
+        flow rules, and put the new flow rules in. I also print output at each step to see how things look inside.
+
+Works with all the topologies I've tried fully pinging all and recalculating if a link or switch is removed.
+
