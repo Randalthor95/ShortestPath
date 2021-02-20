@@ -4,9 +4,14 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import edu.brown.cs.sdn.apps.util.SwitchCommands;
+import net.floodlightcontroller.packet.Ethernet;
 import org.openflow.protocol.OFMatch;
+import org.openflow.protocol.OFMatchField;
+import org.openflow.protocol.OFOXMFieldType;
+import org.openflow.protocol.action.OFAction;
 import org.openflow.protocol.action.OFActionOutput;
 import org.openflow.protocol.instruction.OFInstruction;
+import org.openflow.protocol.instruction.OFInstructionApplyActions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +58,8 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     // Hash table containing the shortest Paths for each switch to every other switch in the network
     public HashMap<IOFSwitch, HashMap<IOFSwitch, IOFSwitch>> shortestPaths;
 
+    Map<String, String> config;
+
     /**
      * Loads dependencies and initializes data structures.
      */
@@ -60,7 +67,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     public void init(FloodlightModuleContext context)
             throws FloodlightModuleException {
         log.info(String.format("Initializing %s...", MODULE_NAME));
-        Map<String, String> config = context.getConfigParams(this);
+        config = context.getConfigParams(this);
         this.table = Byte.parseByte(config.get("table"));
 
         this.floodlightProv = context.getServiceImpl(
@@ -141,6 +148,8 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
 
             /*****************************************************************/
             this.shortestPaths = dijkstraPaths();
+            removeAllFlowTableRules();
+            setAllFlowTableRulesForAllHosts();
             logData();
         }
     }
@@ -165,6 +174,9 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         /* TODO: Update routing: remove rules to route to host               */
 
         /*********************************************************************/
+        this.shortestPaths = dijkstraPaths();
+        removeAllFlowTableRules();
+        setAllFlowTableRulesForAllHosts();
         logData();
     }
 
@@ -192,6 +204,9 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         /* TODO: Update routing: change rules to route to host               */
 
         /*********************************************************************/
+        this.shortestPaths = dijkstraPaths();
+        removeAllFlowTableRules();
+        setAllFlowTableRulesForAllHosts();
         logData();
     }
 
@@ -209,6 +224,9 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         /* TODO: Update routing: change routing rules for all hosts          */
 
         /*********************************************************************/
+        this.shortestPaths = dijkstraPaths();
+        removeAllFlowTableRules();
+        setAllFlowTableRulesForAllHosts();
         logData();
     }
 
@@ -226,6 +244,9 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         /* TODO: Update routing: change routing rules for all hosts          */
 
         /*********************************************************************/
+        this.shortestPaths = dijkstraPaths();
+        removeAllFlowTableRules();
+        setAllFlowTableRulesForAllHosts();
         logData();
     }
 
@@ -255,6 +276,9 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         /* TODO: Update routing: change routing rules for all hosts          */
 
         /*********************************************************************/
+        this.shortestPaths = dijkstraPaths();
+        removeAllFlowTableRules();
+        setAllFlowTableRulesForAllHosts();
         logData();
     }
 
@@ -385,7 +409,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         StringBuilder message = new StringBuilder();
         message.append("\n##################### LOG DATA #######################################");
         message.append("\n#############TABLE#############\n");
-        message.append(String.valueOf(this.table) + "\n");
+        message.append(String.valueOf(Byte.parseByte(config.get("table"))) + "\n");
         message.append(getHostsAsString(this.getHosts()));
         message.append(getSwitchesAsString(this.getSwitches()));
         message.append(getLinksAsString(this.getLinks()));
@@ -554,18 +578,103 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         return answer;
     }
 
-    public void connectTwoHostsViaSharedSwitch(Host host1, Host host2, IOFSwitch iofSwitch1, IOFSwitch iofSwitch2) {
-        OFMatch match = new OFMatch();
-        match.setNetworkSource(host1.getIPv4Address());
-        ArrayList<OFInstruction> instructionList = new ArrayList<OFInstruction>();
-        SwitchCommands.installRule(iofSwitch1, this.table, SwitchCommands.DEFAULT_PRIORITY, match, instructionList, SwitchCommands.NO_TIMEOUT, SwitchCommands.NO_TIMEOUT);
-
+    public void setAllFlowTableRulesForAllHostsLinear() {
+        for (Host host : getHosts()) {
+            setRoutingRulesFromHostToSwitch(host, host.getSwitch());
+        }
     }
 
-    public void installFlowTableRules(Host host) {
-        OFMatch match = new OFMatch();
-        match.setNetworkSource(host.getIPv4Address());
-        OFActionOutput action = new OFActionOutput();
+    public void setRoutingRulesFromHostToSwitch(Host host, IOFSwitch iofSwitch) {
+        if (host.isAttachedToSwitch()) {
+            OFMatch match = new OFMatch();
+            ArrayList<OFMatchField> fieldList = new ArrayList<OFMatchField>();
+            OFMatchField ethernet = new OFMatchField(OFOXMFieldType.ETH_TYPE, Ethernet.TYPE_IPv4);
+            OFMatchField macAddress = new OFMatchField(OFOXMFieldType.ETH_DST, Ethernet.toByteArray(host.getMACAddress()));
+            fieldList.add(ethernet);
+            fieldList.add(macAddress);
+            match.setMatchFields(fieldList);
+
+            OFActionOutput action = new OFActionOutput();
+            action.setPort(host.getPort());
+            ArrayList<OFAction> actions = new ArrayList<OFAction>();
+            actions.add(action);
+
+            OFInstructionApplyActions instructionsList = new OFInstructionApplyActions(actions);
+            ArrayList<OFInstruction> instructions = new ArrayList<OFInstruction>();
+            instructions.add(instructionsList);
+
+            boolean setCommand = SwitchCommands.installRule(iofSwitch, this.table, SwitchCommands.DEFAULT_PRIORITY, match, instructions, SwitchCommands.NO_TIMEOUT, SwitchCommands.NO_TIMEOUT);
+            log.info("\n!!!!!!!!!!!!!!!!!!SETTING ROUTING RULES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                    + instructions + " Successful: " + setCommand + "\n");
+        }
+    }
+
+    public void setAllFlowTableRulesForAllHosts() {
+        for (Host host : getHosts()) {
+            setRoutingRulesForAHost(host);
+        }
+    }
+
+    public void setRoutingRulesForAHost(Host host) {
+        if (host.isAttachedToSwitch()) {
+            OFMatch match = new OFMatch();
+            ArrayList<OFMatchField> fieldList = new ArrayList<OFMatchField>();
+            OFMatchField ethernet = new OFMatchField(OFOXMFieldType.ETH_TYPE, Ethernet.TYPE_IPv4);
+            OFMatchField macAddress = new OFMatchField(OFOXMFieldType.ETH_DST, Ethernet.toByteArray(host.getMACAddress()));
+            fieldList.add(ethernet);
+            fieldList.add(macAddress);
+            match.setMatchFields(fieldList);
+
+
+            for (IOFSwitch iofSwitch : getSwitches().values()) {
+
+                OFActionOutput action = new OFActionOutput();
+
+                //if this is the switch our host is attached to, just send packet to the host
+                //else send packet to the next switch in our shortest path route
+                if (iofSwitch.getId() == host.getSwitch().getId()) {
+                    action.setPort(host.getPort());
+                } else {
+
+                    IOFSwitch nextSwitch = shortestPaths.get(host.getSwitch()).get(iofSwitch);
+                    for (Link link : getLinks()) {
+                        if (link.getSrc() == iofSwitch.getId() && link.getDst() == nextSwitch.getId()) {
+                            action.setPort(link.getSrcPort());
+                            break;
+                        }
+                    }
+                }
+
+                ArrayList<OFAction> actions = new ArrayList<OFAction>();
+                actions.add(action);
+                OFInstructionApplyActions instructionsList = new OFInstructionApplyActions(actions);
+                ArrayList<OFInstruction> instructions = new ArrayList<OFInstruction>();
+                instructions.add(instructionsList);
+
+                boolean setCommand = SwitchCommands.installRule(iofSwitch, this.table, SwitchCommands.DEFAULT_PRIORITY, match, instructions, SwitchCommands.NO_TIMEOUT, SwitchCommands.NO_TIMEOUT);
+                log.info("\n!!!!!!!!!!!!!!!!!!SETTING ROUTING RULES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                        + instructions + " Successful: " + setCommand + "\n");
+            }
+
+
+        }
+    }
+
+    public void removeAllFlowTableRules() {
+        for (Host host : getHosts()) {
+            OFMatch match = new OFMatch();
+            ArrayList<OFMatchField> fieldList = new ArrayList<OFMatchField>();
+            OFMatchField ethernet = new OFMatchField(OFOXMFieldType.ETH_TYPE, Ethernet.TYPE_IPv4);
+            OFMatchField macAddress = new OFMatchField(OFOXMFieldType.ETH_DST, Ethernet.toByteArray(host.getMACAddress()));
+            fieldList.add(ethernet);
+            fieldList.add(macAddress);
+            match.setMatchFields(fieldList);
+
+            for (IOFSwitch sw : getSwitches().values()) {
+                SwitchCommands.removeRules(sw, this.table, match);
+            }
+        }
+        log.info("\n!!!!!!!!!!!!!!!!!!REMOVED ROUTING RULES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" + "\n");
     }
 }
 
