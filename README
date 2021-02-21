@@ -1,17 +1,16 @@
 # ShortestPathSwitching
 
-
 ##Author
 Anthony Feudale
+acf003@colostate.edu
 
 ## How Far I Got
-I was able to successfully complete the assignment in full. Fulling
+I was able to successfully complete the assignment in full. Fulfilling
     Part 1 Procedural,
     Option 2 Static Routing with Shortest Path Implementation
     Part 4 Dynamic Changes to the Topology
 
 ## Changes Made
-
 The principle changes made were:
     1. The creation of an uninitialized HashMap shortestPaths variable in init().
     2. The creation of a method dijkstraPaths() which calculates the shortest paths for all the switches in a given
@@ -27,6 +26,9 @@ The principle changes made were:
     5. The 4 new methods are called in each of the 6 methods with TODO's except init() and start().
         Essentially, anytime a change is made to our topology in anyway I just recalculate the shortest paths, nuke the
         flow rules, and put the new flow rules in. I also print output at each step to see how things look inside.
-
+    6. There are also some helper methods for the four main methods, as well as another method
+        setAllFlowTableRulesForAllHostsLinear() that I used to figure out how to set Flow rules in a super simple
+        linear topology. I don't use it in the final setup but I left it in there to illustrate the evolution of
+        the program.
 Works with all the topologies I've tried fully pinging all and recalculating if a link or switch is removed.
 
